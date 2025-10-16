@@ -468,6 +468,7 @@ class ModbusController : public PollingComponent, public modbus::ModbusDevice {
 
   /// queues a modbus command in the send queue
   void queue_command(const ModbusCommandItem &command);
+  void queue_command(const ModbusCommandItem &command, bool insert);
   /// Registers a sensor with the controller. Called by esphomes code generator
   void add_sensor_item(SensorItem *item) { sensorset_.insert(item); }
   /// Registers a server register with the controller. Called by esphomes code generator
@@ -490,6 +491,7 @@ class ModbusController : public PollingComponent, public modbus::ModbusDevice {
   void set_allow_duplicate_commands(bool allow_duplicate_commands) {
     this->allow_duplicate_commands_ = allow_duplicate_commands;
   }
+  void set_passive_mode(bool passive_mode) { passive_mode_ = passive_mode; }
   /// get if a duplicate command can be sent
   bool get_allow_duplicate_commands() { return this->allow_duplicate_commands_; }
   /// called by esphome generated code to set the command_throttle period
@@ -516,6 +518,8 @@ class ModbusController : public PollingComponent, public modbus::ModbusDevice {
   }
   /// Get the server courtesy response object
   ServerCourtesyResponse get_server_courtesy_response() const { return this->server_courtesy_response_; }
+  /// QUeue a passive read
+  void queue_passive_read(uint16_t start_address, uint8_t register_count);
 
  protected:
   /// parse sensormap_ and create range of sequential addresses
@@ -552,6 +556,8 @@ class ModbusController : public PollingComponent, public modbus::ModbusDevice {
   uint16_t offline_skip_updates_{0};
   /// How many times we will retry a command if we get no response
   uint8_t max_cmd_retries_{4};
+  /// is passive mode enabled
+  bool passive_mode_;
   /// Command sent callback
   CallbackManager<void(int, int)> command_sent_callback_{};
   /// Server online callback
@@ -561,6 +567,7 @@ class ModbusController : public PollingComponent, public modbus::ModbusDevice {
   /// Server courtesy response
   ServerCourtesyResponse server_courtesy_response_{
       .enabled = false, .register_last_address = 0xFFFF, .register_value = 0};
+  uint32_t last_receive_timestamp_{0};
 };
 
 /** Convert vector<uint8_t> response payload to float.
