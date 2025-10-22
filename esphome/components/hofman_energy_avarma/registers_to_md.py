@@ -1,0 +1,16 @@
+from registers.avarma_registers import (
+    AVARMA_BINARY_REGISTERS,
+    AVARMA_NUMBER_REGISTERS,
+    AVARMA_SENSOR_REGISTERS,
+    AVARMA_SWITCH_REGISTERS,
+)
+
+regs = (
+    AVARMA_NUMBER_REGISTERS
+    + AVARMA_SWITCH_REGISTERS
+    + AVARMA_BINARY_REGISTERS
+    + AVARMA_SENSOR_REGISTERS
+)
+
+for reg in regs:
+    print(reg)
