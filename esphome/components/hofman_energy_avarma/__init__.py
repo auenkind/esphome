@@ -27,11 +27,8 @@ from .avarma_registers import (
 
 DEPENDENCIES = ["modbus", "modbus_controller"]
 AUTO_LOAD = [
-    "sensor",
-    "switch",
-    "number",
-    "binary_sensor",
     "modbus",
+    "modbus_controller",
 ]
 MULTI_CONF = False
 
@@ -39,6 +36,7 @@ avarma_component_ns = cg.esphome_ns.namespace("hofman_energy_avarma")
 HofmanEnergyAvarmaComponent = avarma_component_ns.class_(
     "HofmanEnergyAvarmaComponent", cg.Component
 )
+
 
 CONFIG_SCHEMA = (
     cv.Schema(
