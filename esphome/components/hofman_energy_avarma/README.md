@@ -23,8 +23,6 @@ uart:
 modbus:
   flow_control_pin: GPIO4
   id: modbus1
-  disable_crc: "false"
-  #passive_mode: "true"
 
 # your modbus_controller config
 modbus_controller:
@@ -33,24 +31,13 @@ modbus_controller:
     modbus_id: modbus1
     setup_priority: -10
     update_interval: 10s
-    #passive_mode: "true"
-    on_online:
-      then:
-        - globals.set:
-            id: modbus_connected
-            value: "true"
-    on_offline:
-      then:
-        - globals.set:
-            id: modbus_connected
-            value: "false"
 
 # active the component
 hofman_energy_avarma:
   id: avarma_12kw_heatpump
   modbus_controller_id: modbus_device
 
-# Theese dummys are needed at the moment due to compile issues
+# These dummys are needed at the moment due to compile issues
 sensor:
   - platform: modbus_controller
     name: dummy
@@ -114,23 +101,13 @@ modbus_controller:
     setup_priority: -10
     update_interval: 10s
     passive_mode: "true"
-    on_online:
-      then:
-        - globals.set:
-            id: modbus_connected
-            value: "true"
-    on_offline:
-      then:
-        - globals.set:
-            id: modbus_connected
-            value: "false"
 
 # active the component
 hofman_energy_avarma:
   id: avarma_12kw_heatpump
   modbus_controller_id: modbus_device
 
-# Theese dummys are needed at the moment due to compile issues
+# These dummys are needed at the moment due to compile issues
 sensor:
   - platform: modbus_controller
     name: dummy
