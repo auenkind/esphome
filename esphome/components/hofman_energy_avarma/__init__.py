@@ -18,7 +18,7 @@ from esphome.const import (
     CONF_PLATFORM,
 )
 
-from .avarma_registers import (
+from .registers.avarma_registers import (
     AVARMA_BINARY_REGISTERS,
     AVARMA_NUMBER_REGISTERS,
     AVARMA_SENSOR_REGISTERS,
