@@ -210,6 +210,7 @@ AVARMA_BINARY_REGISTERS = [
 
 AVARMA_SWITCH_REGISTERS = [
     AvarmaRegister(0x1000, 0, "P00", "ON/OFF", device_class=DEVICE_CLASS_SWITCH),
+    AvarmaRegister(0x1000, 8, "PFAULTC", "Clear Faults", device_class=DEVICE_CLASS_SWITCH),
 ]
 
 
