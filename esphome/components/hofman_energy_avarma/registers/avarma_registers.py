@@ -244,7 +244,8 @@ AVARMA_NUMBER_REGISTERS = [
         min=18,
         max=35,
     ),
-    NumberRegister(0x2000, 1, "P01", "Function selection 2", 0, 5),
+    NumberRegister(0x1000, 1, "P01", "Mode Setting", 0, 5),
+    NumberRegister(0x2000, 1, "P01_2", "Function selection 2", 0, 5),
     NumberRegister(0x2000, 4, "P06", "A/C Hysteresis temperature", 1, 15, 0.1, 10.0),
     NumberRegister(0x2000, 5, "P07", "DHW Hysteresis temperature", 1, 15, 0.1, 10.0),
     NumberRegister(
