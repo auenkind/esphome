@@ -130,6 +130,12 @@ AVARMA_SENSOR_REGISTERS = [
     TempRegister(0x1100, 32, "C26", "Room Temperature (T2)"),
     TempRegister(0x1100, 33, "C27", "Evaporator temperature"),
     TempRegister(0x1100, 34, "C28", "Condenser temperature"),
+    AvarmaRegister(
+        0x1100,
+        45,
+        "DPumpPWM",
+        "C1 Pump PWM Value"
+    ),
 ]
 
 AVARMA_BINARY_REGISTERS = [
