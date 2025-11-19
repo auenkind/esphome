@@ -988,4 +988,13 @@ AVARMA_NUMBER_REGISTERS = [
         90,
         deactivated=True,
     ),
+    NumberRegister(
+        0x2000,
+        85,
+        "P87",
+        "Restore Factory Settings",
+        0,
+        1,
+        deactivated=True,
+    ),
 ]
