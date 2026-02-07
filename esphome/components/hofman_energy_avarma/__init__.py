@@ -2,7 +2,6 @@ import esphome.codegen as cg
 from esphome.components import binary_sensor, modbus_controller, number, sensor, switch
 from esphome.components.modbus_controller import ModbusController
 from esphome.components.modbus_controller.binary_sensor import ModbusBinarySensor
-from esphome.components.modbus_controller.const import CONF_REGISTER_TYPE
 from esphome.components.modbus_controller.number import ModbusNumber
 from esphome.components.modbus_controller.sensor import ModbusSensor
 from esphome.components.modbus_controller.switch import ModbusSwitch
@@ -129,14 +128,12 @@ async def to_code(config):
             modbus_controller.CONF_MODBUS_CONTROLLER_ID
         ]
         conf[modbus_controller.CONF_ADDRESS] = register.address
-        conf[modbus_controller.CONF_REGISTER_TYPE] = (
-            modbus_controller.ModbusRegisterType.HOLDING
-        )
+        conf[modbus_controller.CONF_REGISTER_TYPE] = "holding"
 
         value_type = register.value_type
         var = cg.new_Pvariable(
             conf[CONF_ID],
-            conf[modbus_controller.CONF_REGISTER_TYPE],
+            modbus_controller.ModbusRegisterType.HOLDING,
             conf[modbus_controller.CONF_ADDRESS],
             0,
             0xFFFFFFFF,
@@ -185,13 +182,11 @@ async def to_code(config):
             modbus_controller.CONF_MODBUS_CONTROLLER_ID
         ]
         conf[modbus_controller.CONF_ADDRESS] = register.address
-        conf[modbus_controller.CONF_REGISTER_TYPE] = (
-            modbus_controller.ModbusRegisterType.HOLDING
-        )
+        conf[modbus_controller.CONF_REGISTER_TYPE] = "holding"
 
         var = cg.new_Pvariable(
             conf[CONF_ID],
-            conf[modbus_controller.CONF_REGISTER_TYPE],
+            modbus_controller.ModbusRegisterType.HOLDING,
             conf[modbus_controller.CONF_ADDRESS],
             0,
             0xFFFFFFFF,
@@ -211,9 +206,7 @@ async def to_code(config):
             modbus_controller.CONF_MODBUS_CONTROLLER_ID
         ]
         conf[modbus_controller.CONF_ADDRESS] = register.address
-        conf[modbus_controller.CONF_REGISTER_TYPE] = (
-            modbus_controller.ModbusRegisterType.HOLDING
-        )
+        conf[modbus_controller.CONF_REGISTER_TYPE] = "holding"
 
         conf[CONF_MIN_VALUE] = register.min
         conf[CONF_MAX_VALUE] = register.max
@@ -221,7 +214,7 @@ async def to_code(config):
 
         var = cg.new_Pvariable(
             conf[CONF_ID],
-            conf[CONF_REGISTER_TYPE],
+            modbus_controller.ModbusRegisterType.HOLDING,
             conf[CONF_ADDRESS],
             0,
             0xFFFFFFFF,

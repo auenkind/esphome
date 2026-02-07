@@ -130,6 +130,7 @@ AVARMA_SENSOR_REGISTERS = [
     TempRegister(0x1100, 32, "C26", "Room Temperature (T2)"),
     TempRegister(0x1100, 33, "C27", "Evaporator temperature"),
     TempRegister(0x1100, 34, "C28", "Condenser temperature"),
+    AvarmaRegister(0x1100, 45, "DPumpPWM", "C1 Pump PWM Value"),
 ]
 
 AVARMA_BINARY_REGISTERS = [
@@ -139,7 +140,7 @@ AVARMA_BINARY_REGISTERS = [
         "C31-C35",
         "Operating State",
         flags=[
-            AvarmaRegisterBinaryRegisterBit("Standby / Shutdown", 0),
+            AvarmaRegisterBinaryRegisterBit("Standby - Shutdown", 0),
             AvarmaRegisterBinaryRegisterBit("Power on State", 1),
             AvarmaRegisterBinaryRegisterBit("Downtime State", 2),
             AvarmaRegisterBinaryRegisterBit("Alarm Power on State", 3),
@@ -203,7 +204,10 @@ AVARMA_BINARY_REGISTERS = [
 ]
 
 AVARMA_SWITCH_REGISTERS = [
-    AvarmaRegister(0x1000, 0, "P00", "ON/OFF", device_class=DEVICE_CLASS_SWITCH),
+    AvarmaRegister(0x1000, 0, "P00", "ON OFF", device_class=DEVICE_CLASS_SWITCH),
+    AvarmaRegister(
+        0x1000, 8, "PFAULTC", "Clear Faults", device_class=DEVICE_CLASS_SWITCH
+    ),
 ]
 
 
@@ -212,7 +216,7 @@ AVARMA_NUMBER_REGISTERS = [
         0x1000,
         2,
         "P02",
-        "A/C Heating AU maximum temperature",
+        "AC Heating AU maximum temperature",
         device_class=None,
         min=35,
         max=75,
@@ -221,7 +225,7 @@ AVARMA_NUMBER_REGISTERS = [
         0x1000,
         3,
         "P03",
-        "A/C Cooling Temperature Setting",
+        "AC Cooling Temperature Setting",
         device_class=None,
         min=7,
         max=25,
@@ -244,14 +248,15 @@ AVARMA_NUMBER_REGISTERS = [
         min=18,
         max=35,
     ),
-    NumberRegister(0x2000, 1, "P01", "Function selection 2", 0, 5),
-    NumberRegister(0x2000, 4, "P06", "A/C Hysteresis temperature", 1, 15, 0.1, 10.0),
+    NumberRegister(0x1000, 1, "P01", "Mode Setting", 0, 5),
+    NumberRegister(0x2000, 1, "P01_2", "Function selection 2", 0, 5),
+    NumberRegister(0x2000, 4, "P06", "AC Hysteresis temperature", 1, 15, 0.1, 10.0),
     NumberRegister(0x2000, 5, "P07", "DHW Hysteresis temperature", 1, 15, 0.1, 10.0),
     NumberRegister(
-        0x2000, 6, "P08", "A/C Heating AU maximum temperature", 35, 75, 0.1, 10.0
+        0x2000, 6, "P08", "AC Heating AU maximum temperature", 35, 75, 0.1, 10.0
     ),
     NumberRegister(
-        0x2000, 7, "P09", "A/C Heating AU offset temperature", -10, 10, 0.1, 10.0
+        0x2000, 7, "P09", "AC Heating AU offset temperature", -10, 10, 0.1, 10.0
     ),
     NumberRegister(
         0x2000, 8, "P10", "Sterilization interval days", 1, 99, deactivated=True
@@ -293,7 +298,7 @@ AVARMA_NUMBER_REGISTERS = [
         0x2000,
         20,
         "P22",
-        "A/C Electric Auxiliary Thermal Start Ambient Temperature",
+        "AC Electric Auxiliary Thermal Start Ambient Temperature",
         -30,
         20,
         0.1,
@@ -315,7 +320,7 @@ AVARMA_NUMBER_REGISTERS = [
         0x2000,
         22,
         "P24",
-        "Electric heating E1/E2 stop ambient temperature hysteresis",
+        "Electric heating E1 E2 stop ambient temperature hysteresis",
         1,
         15,
         0.1,
@@ -326,7 +331,7 @@ AVARMA_NUMBER_REGISTERS = [
         0x2000,
         23,
         "P25",
-        "A/C antifreeze temperature",
+        "AC antifreeze temperature",
         -15,
         5,
         0.1,
@@ -602,7 +607,7 @@ AVARMA_NUMBER_REGISTERS = [
     NumberRegister(0x2000, 57, "P59", "PWM water pump minimum speed", 0, 100),
     NumberRegister(0x2000, 58, "P60", "DC fan maximum speed", 500, 1500, 1, 0.1),
     NumberRegister(0x2000, 59, "P61", "Minimum water flow", 3, 80),
-    NumberRegister(0x2000, 60, "P62", "A/C function selection", 0, 2),
+    NumberRegister(0x2000, 60, "P62", "AC function selection", 0, 2),
     NumberRegister(0x2000, 61, "P63", "DHW function selection", 0, 1),
     NumberRegister(
         0x2000,
@@ -698,7 +703,7 @@ AVARMA_NUMBER_REGISTERS = [
         deactivated=True,
     ),
     NumberRegister(
-        0x2000, 79, "P81", "E1/E2 function mode definition", 0, 3, deactivated=True
+        0x2000, 79, "P81", "E1 E2 function mode definition", 0, 3, deactivated=True
     ),
     NumberRegister(
         0x2000,
@@ -894,7 +899,7 @@ AVARMA_NUMBER_REGISTERS = [
         0x2000,
         102,
         "P104",
-        "Initial compressor frequency for AC heating/cooling capacity calculation",
+        "Initial compressor frequency for AC heating cooling capacity calculation",
         20,
         60,
         deactivated=True,
