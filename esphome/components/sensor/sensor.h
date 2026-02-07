@@ -9,8 +9,7 @@
 #include <initializer_list>
 #include <memory>
 
-namespace esphome {
-namespace sensor {
+namespace esphome::sensor {
 
 void log_sensor(const char *tag, const char *prefix, const char *type, Sensor *obj);
 
@@ -31,7 +30,9 @@ enum StateClass : uint8_t {
   STATE_CLASS_MEASUREMENT = 1,
   STATE_CLASS_TOTAL_INCREASING = 2,
   STATE_CLASS_TOTAL = 3,
+  STATE_CLASS_MEASUREMENT_ANGLE = 4
 };
+constexpr uint8_t STATE_CLASS_LAST = static_cast<uint8_t>(STATE_CLASS_MEASUREMENT_ANGLE);
 
 const LogString *state_class_to_string(StateClass state_class);
 
@@ -124,8 +125,8 @@ class Sensor : public EntityBase, public EntityBase_DeviceClass, public EntityBa
   void internal_send_state_to_frontend(float state);
 
  protected:
-  std::unique_ptr<CallbackManager<void(float)>> raw_callback_;  ///< Storage for raw state callbacks (lazy allocated).
-  CallbackManager<void(float)> callback_;                       ///< Storage for filtered state callbacks.
+  LazyCallbackManager<void(float)> raw_callback_;  ///< Storage for raw state callbacks.
+  LazyCallbackManager<void(float)> callback_;      ///< Storage for filtered state callbacks.
 
   Filter *filter_list_{nullptr};  ///< Store all active filters.
 
@@ -142,5 +143,4 @@ class Sensor : public EntityBase, public EntityBase_DeviceClass, public EntityBa
   } sensor_flags_{};
 };
 
-}  // namespace sensor
-}  // namespace esphome
+}  // namespace esphome::sensor

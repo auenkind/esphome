@@ -137,7 +137,11 @@ async def lvgl_is_idle(config, condition_id, template_arg, args):
     lvgl = config[CONF_LVGL_ID]
     timeout = await lv_milliseconds.process(config[CONF_TIMEOUT])
     async with LambdaContext(LVGL_COMP_ARG, return_type=cg.bool_) as context:
-        lv_add(ReturnStatement(lvgl_comp.is_idle(timeout)))
+        lv_add(
+            ReturnStatement(
+                lv_expr.disp_get_inactive_time(lvgl_comp.get_disp()) > timeout
+            )
+        )
     var = cg.new_Pvariable(
         condition_id,
         TemplateArguments(LvglComponent, *template_arg),
@@ -268,9 +272,7 @@ async def obj_hide_to_code(config, action_id, template_arg, args):
     async def do_hide(widget: Widget):
         widget.add_flag("LV_OBJ_FLAG_HIDDEN")
 
-    widgets = [
-        widget.outer if widget.outer else widget for widget in await get_widgets(config)
-    ]
+    widgets = [widget.outer or widget for widget in await get_widgets(config)]
     return await action_to_code(widgets, do_hide, action_id, template_arg, args)
 
 
@@ -281,9 +283,7 @@ async def obj_show_to_code(config, action_id, template_arg, args):
         if widget.move_to_foreground:
             lv_obj.move_foreground(widget.obj)
 
-    widgets = [
-        widget.outer if widget.outer else widget for widget in await get_widgets(config)
-    ]
+    widgets = [widget.outer or widget for widget in await get_widgets(config)]
     return await action_to_code(widgets, do_show, action_id, template_arg, args)
 
 
