@@ -1,4 +1,3 @@
-from esphome.components.modbus_controller import SensorValueType
 import esphome.config_validation as cv
 from esphome.const import DEVICE_CLASS_TEMPERATURE
 
@@ -24,7 +23,7 @@ class AvarmaRegister:
         entity_category=cv.ENTITY_CATEGORY_NONE,
         device_class=DEVICE_CLASS_TEMPERATURE,
         flags=None,
-        value_type=SensorValueType.S_WORD,
+        value_type="S_WORD",
         step=1.0,
         deactivated=False,
     ):
