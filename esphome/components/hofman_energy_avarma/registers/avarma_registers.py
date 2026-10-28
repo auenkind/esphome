@@ -605,7 +605,7 @@ AVARMA_NUMBER_REGISTERS = [
         10.0,
         deactivated=True,
     ),
-    NumberRegister(0x2000, 57, "P59", "PWM water pump minimum speed", 0, 100),
+    NumberRegister(0x2000, 57, "P59", "PWM water pump minimum speed", 3, 10),
     NumberRegister(0x2000, 58, "P60", "DC fan maximum speed", 500, 1500, 1, 0.1),
     NumberRegister(0x2000, 59, "P61", "Minimum water flow", 3, 80),
     NumberRegister(0x2000, 60, "P62", "AC function selection", 0, 2),
