@@ -68,6 +68,14 @@ number:
 ```
 
 ## Example Config Passive Mode (connected to Comm 4 of the Heat-Pump) in parallel with the Display
+
+In passive mode the ESP never transmits. A `modbus` hub with `role: server` listens to the
+requests of the display and the replies of the heat pump, and the component publishes the
+register values it sees. Only the registers the display reads are updated.
+
+Passive mode is read only: switches become binary sensors and numbers become sensors.
+No `modbus_controller` and no dummy entities are needed.
+
 ```
 # your ESP Config here
 
@@ -77,7 +85,7 @@ external_components:
       type: git
       url: https://github.com/auenkind/esphome
       ref: dev
-    components: [ hofman_energy_avarma, modbus, modbus_controller ]
+    components: [ hofman_energy_avarma ]
     refresh: 1h
 
 # your uart Config
@@ -86,53 +94,14 @@ uart:
   rx_pin: GPIO3
   baud_rate: 9600
 
-# your modbus Config
+# your modbus Config: listen only
 modbus:
-  flow_control_pin: GPIO4
   id: modbus1
-  disable_crc: "false"
-  passive_mode: "true"
-
-# your modbus_controller config
-modbus_controller:
-  - id: modbus_device
-    address: 0x1 ##
-    modbus_id: modbus1
-    setup_priority: -10
-    update_interval: 10s
-    passive_mode: "true"
+  role: server
 
 # active the component
 hofman_energy_avarma:
   id: avarma_12kw_heatpump
-  modbus_controller_id: modbus_device
-
-# These dummys are needed at the moment due to compile issues
-sensor:
-  - platform: modbus_controller
-    name: dummy
-    address: 0x01
-    register_type: holding
-    internal: true
-binary_sensor:
-  - platform: modbus_controller
-    name: dummy
-    address: 0x01
-    register_type: holding
-    internal: true
-switch:
-  - platform: modbus_controller
-    modbus_controller_id: modbus_device
-    name: "dummy"
-    register_type: holding
-    address: 0x01
-    internal: true
-    restore_mode: DISABLED
-number:
-  - platform: modbus_controller
-    name: dummy
-    address: 0x01
-    register_type: holding
-    internal: true
-
+  modbus_id: modbus1
+  address: 0x01 # modbus address of the heat pump (default 0x01)
 ```
