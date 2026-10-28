@@ -12,7 +12,89 @@
 #include <span>
 #endif
 
+#ifdef USE_HOFMAN_ENERGY_AVARMA_ACTIVE
+#include "esphome/components/binary_sensor/binary_sensor.h"
+#include "esphome/components/modbus_controller/modbus_controller.h"
+#include "esphome/components/number/number.h"
+#include "esphome/components/sensor/sensor.h"
+#include "esphome/components/switch/switch.h"
+
+#include <span>
+#endif
+
 namespace esphome::hofman_energy_avarma {
+
+#ifdef USE_HOFMAN_ENERGY_AVARMA_ACTIVE
+// Entities polled through modbus_controller. They live here rather than using the modbus_controller
+// platforms, whose sources are only compiled when a YAML entry uses them. Every AVARMA register is a
+// single holding register.
+
+/// Sets up a SensorItem for one holding register at its own address.
+inline void init_holding_item(modbus_controller::SensorItem &item, uint16_t address, uint32_t bitmask,
+                              modbus::helpers::SensorValueType value_type) {
+  item.register_type = modbus::EntityType::HOLDING;
+  item.set_address(address);
+  item.set_offset_from_start_address(0);
+  item.bitmask = bitmask;
+  item.sensor_value_type = value_type;
+}
+
+class ActiveSensor : public sensor::Sensor, public modbus_controller::SensorItem {
+ public:
+  ActiveSensor(uint16_t address, modbus::helpers::SensorValueType value_type) {
+    init_holding_item(*this, address, 0xFFFFFFFF, value_type);
+  }
+  void parse_and_publish(std::span<const uint8_t> data) override {
+    this->publish_state(modbus_controller::payload_to_float(data, *this, this->offset));
+  }
+};
+
+class ActiveBinarySensor : public binary_sensor::BinarySensor, public modbus_controller::SensorItem {
+ public:
+  ActiveBinarySensor(uint16_t address, uint32_t bitmask) {
+    init_holding_item(*this, address, bitmask, modbus::helpers::SensorValueType::BIT);
+  }
+  void parse_and_publish(std::span<const uint8_t> data) override {
+    this->publish_state((modbus::helpers::get_data<uint16_t>(data.data(), this->offset) & this->bitmask) != 0);
+  }
+};
+
+class ActiveSwitch : public switch_::Switch,
+                     public modbus_controller::SensorItem,
+                     public modbus_controller::WriterEntity {
+ public:
+  explicit ActiveSwitch(uint16_t address) {
+    init_holding_item(*this, address, 0xFFFFFFFF, modbus::helpers::SensorValueType::BIT);
+  }
+  void set_parent(modbus_controller::ModbusController *parent) { this->set_controller_(parent); }
+  void parse_and_publish(std::span<const uint8_t> data) override {
+    this->publish_state((modbus::helpers::get_data<uint16_t>(data.data(), this->offset) & this->bitmask) != 0);
+  }
+
+ protected:
+  void write_state(bool state) override;
+};
+
+class ActiveNumber : public number::Number,
+                     public modbus_controller::SensorItem,
+                     public modbus_controller::WriterEntity {
+ public:
+  ActiveNumber(uint16_t address, modbus::helpers::SensorValueType value_type) {
+    init_holding_item(*this, address, 0xFFFFFFFF, value_type);
+  }
+  void set_parent(modbus_controller::ModbusController *parent) { this->set_controller_(parent); }
+  /// The register holds the value times this factor.
+  void set_write_multiply(float factor) { this->multiply_by_ = factor; }
+  void parse_and_publish(std::span<const uint8_t> data) override {
+    this->publish_state(modbus_controller::payload_to_float(data, *this, this->offset) / this->multiply_by_);
+  }
+
+ protected:
+  void control(float value) override;
+
+  float multiply_by_{1.0f};
+};
+#endif
 
 #ifdef USE_HOFMAN_ENERGY_AVARMA_PASSIVE
 /// An entity fed from the holding register values the heat pump sends to its display.

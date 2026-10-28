@@ -1,12 +1,7 @@
 import esphome.codegen as cg
 from esphome.components import binary_sensor, modbus, number, sensor, switch
-from esphome.components.modbus.helpers import EntityType
-from esphome.components.modbus_controller import RANGE_REUSE, ModbusController
-from esphome.components.modbus_controller.binary_sensor import ModbusBinarySensor
+from esphome.components.modbus_controller import ModbusController, SensorItem
 from esphome.components.modbus_controller.const import CONF_MODBUS_CONTROLLER_ID
-from esphome.components.modbus_controller.number import ModbusNumber
-from esphome.components.modbus_controller.sensor import ModbusSensor
-from esphome.components.modbus_controller.switch import ModbusSwitch
 import esphome.config_validation as cv
 from esphome.const import (
     CONF_ADDRESS,
@@ -34,6 +29,12 @@ avarma_component_ns = cg.esphome_ns.namespace("hofman_energy_avarma")
 HofmanEnergyAvarmaComponent = avarma_component_ns.class_(
     "HofmanEnergyAvarmaComponent", cg.Component
 )
+ActiveSensor = avarma_component_ns.class_("ActiveSensor", sensor.Sensor, SensorItem)
+ActiveBinarySensor = avarma_component_ns.class_(
+    "ActiveBinarySensor", binary_sensor.BinarySensor, SensorItem
+)
+ActiveSwitch = avarma_component_ns.class_("ActiveSwitch", switch.Switch, SensorItem)
+ActiveNumber = avarma_component_ns.class_("ActiveNumber", number.Number, SensorItem)
 PassiveSensor = avarma_component_ns.class_("PassiveSensor", sensor.Sensor)
 PassiveBinarySensor = avarma_component_ns.class_(
     "PassiveBinarySensor", binary_sensor.BinarySensor
@@ -88,14 +89,14 @@ ACTIVE_SCHEMA = cv.Schema(
     {
         cv.GenerateID(): cv.declare_id(HofmanEnergyAvarmaComponent),
         cv.Required(CONF_MODBUS_CONTROLLER_ID): cv.use_id(ModbusController),
-        **_sensor_schemas(ModbusSensor),
-        **_flag_schemas(ModbusBinarySensor),
+        **_sensor_schemas(ActiveSensor),
+        **_flag_schemas(ActiveBinarySensor),
         **{
             cv.Optional(
                 register.parameter_id,
                 default=_entity_defaults(register, register.name),
             ): switch.switch_schema(
-                ModbusSwitch,
+                ActiveSwitch,
                 entity_category=register.entity_category,
                 device_class=register.device_class,
                 default_restore_mode="DISABLED",
@@ -106,7 +107,7 @@ ACTIVE_SCHEMA = cv.Schema(
             cv.Optional(
                 register.parameter_id,
                 default=_entity_defaults(register, register.name),
-            ): number.number_schema(ModbusNumber)
+            ): number.number_schema(ActiveNumber)
             for register in AVARMA_NUMBER_REGISTERS
         },
     }
@@ -206,65 +207,31 @@ async def _passive_to_code(component: cg.MockObj, config: ConfigType) -> None:
 
 async def _active_to_code(config: ConfigType) -> None:
     controller = await cg.get_variable(config[CONF_MODBUS_CONTROLLER_ID])
-    range_reuse = RANGE_REUSE["auto"]
+    cg.add_define("USE_HOFMAN_ENERGY_AVARMA_ACTIVE")
 
     for register in AVARMA_SENSOR_REGISTERS:
         conf = config[register.parameter_id]
-        var = cg.new_Pvariable(
-            conf[CONF_ID],
-            EntityType.HOLDING,
-            register.address,
-            0,
-            0xFFFFFFFF,
-            register.value_type,
-            range_reuse,
-        )
-        await cg.register_component(var, conf)
+        var = cg.new_Pvariable(conf[CONF_ID], register.address, register.value_type)
         await sensor.register_sensor(var, conf)
         cg.add(controller.add_sensor_item(var))
 
     for register in AVARMA_BINARY_REGISTERS:
         for flag in register.flags:
             conf = config[_flag_key(register, flag)]
-            var = cg.new_Pvariable(
-                conf[CONF_ID],
-                EntityType.HOLDING,
-                register.address,
-                0,
-                flag.bitmask,
-                range_reuse,
-            )
-            await cg.register_component(var, conf)
+            var = cg.new_Pvariable(conf[CONF_ID], register.address, flag.bitmask)
             await binary_sensor.register_binary_sensor(var, conf)
             cg.add(controller.add_sensor_item(var))
 
     for register in AVARMA_SWITCH_REGISTERS:
         conf = config[register.parameter_id]
-        var = cg.new_Pvariable(
-            conf[CONF_ID],
-            EntityType.HOLDING,
-            register.address,
-            0,
-            0xFFFFFFFF,
-            range_reuse,
-        )
-        await cg.register_component(var, conf)
+        var = cg.new_Pvariable(conf[CONF_ID], register.address)
         await switch.register_switch(var, conf)
         cg.add(var.set_parent(controller))
         cg.add(controller.add_sensor_item(var))
 
     for register in AVARMA_NUMBER_REGISTERS:
         conf = config[register.parameter_id]
-        var = cg.new_Pvariable(
-            conf[CONF_ID],
-            EntityType.HOLDING,
-            register.address,
-            0,
-            0xFFFFFFFF,
-            register.value_type,
-            range_reuse,
-        )
-        await cg.register_component(var, conf)
+        var = cg.new_Pvariable(conf[CONF_ID], register.address, register.value_type)
         await number.register_number(
             var,
             conf,

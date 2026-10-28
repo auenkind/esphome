@@ -37,34 +37,6 @@ hofman_energy_avarma:
   id: avarma_12kw_heatpump
   modbus_controller_id: modbus_device
 
-# These dummys are needed at the moment due to compile issues
-sensor:
-  - platform: modbus_controller
-    name: dummy
-    address: 0x01
-    register_type: holding
-    internal: true
-binary_sensor:
-  - platform: modbus_controller
-    name: dummy
-    address: 0x01
-    register_type: holding
-    internal: true
-switch:
-  - platform: modbus_controller
-    modbus_controller_id: modbus_device
-    name: "dummy"
-    register_type: holding
-    address: 0x01
-    internal: true
-    restore_mode: DISABLED
-number:
-  - platform: modbus_controller
-    name: dummy
-    address: 0x01
-    register_type: holding
-    internal: true
-
 ```
 
 ## Example Config Passive Mode (connected to Comm 4 of the Heat-Pump) in parallel with the Display

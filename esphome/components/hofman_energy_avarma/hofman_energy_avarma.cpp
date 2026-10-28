@@ -1,9 +1,33 @@
 #include "hofman_energy_avarma.h"
 #include "esphome/core/log.h"
 
+#include <cmath>
+
 namespace esphome::hofman_energy_avarma {
 
 ESPHOME_LOG_TAG(TAG, "hofman_energy_avarma");
+
+#ifdef USE_HOFMAN_ENERGY_AVARMA_ACTIVE
+void ActiveSwitch::write_state(bool state) {
+  // A new write supersedes this entity's own not-yet-sent writes.
+  this->clear_tx_queue_for_device();
+  if (!this->write_single_register(this->write_address(), state ? 0xFFFF : 0)) {
+    ESP_LOGW(TAG, "Write to 0x%04X was refused by the hub", this->write_address());
+    return;
+  }
+  this->publish_state(state);
+}
+
+void ActiveNumber::control(float value) {
+  this->clear_tx_queue_for_device();
+  const auto raw = static_cast<int16_t>(lroundf(value * this->multiply_by_));
+  if (!this->write_single_register(this->write_address(), static_cast<uint16_t>(raw))) {
+    ESP_LOGW(TAG, "Write to 0x%04X was refused by the hub", this->write_address());
+    return;
+  }
+  this->publish_state(value);
+}
+#endif
 
 #ifdef USE_HOFMAN_ENERGY_AVARMA_PASSIVE
 void PassiveSensor::publish_register(uint16_t value) {
