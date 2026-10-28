@@ -6,12 +6,11 @@
 #include "esphome/core/component.h"
 #include "esphome/core/hal.h"
 
-namespace esphome {
-namespace ektf2232 {
+namespace esphome::ektf2232 {
 
 using namespace touchscreen;
 
-class EKTF2232Touchscreen : public Touchscreen, public i2c::I2CDevice {
+class EKTF2232Touchscreen final : public Touchscreen, public i2c::I2CDevice {
  public:
   void setup() override;
   void dump_config() override;
@@ -23,7 +22,6 @@ class EKTF2232Touchscreen : public Touchscreen, public i2c::I2CDevice {
   bool get_power_state();
 
  protected:
-  void hard_reset_();
   bool soft_reset_();
   void update_touches() override;
 
@@ -31,5 +29,4 @@ class EKTF2232Touchscreen : public Touchscreen, public i2c::I2CDevice {
   GPIOPin *reset_pin_;
 };
 
-}  // namespace ektf2232
-}  // namespace esphome
+}  // namespace esphome::ektf2232

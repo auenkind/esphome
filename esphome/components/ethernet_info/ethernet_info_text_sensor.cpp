@@ -1,11 +1,11 @@
 #include "ethernet_info_text_sensor.h"
 #include "esphome/core/log.h"
 
-#ifdef USE_ESP32
+#ifdef USE_ETHERNET
 
 namespace esphome::ethernet_info {
 
-static const char *const TAG = "ethernet_info";
+ESPHOME_LOG_TAG(TAG, "ethernet_info");
 
 #ifdef USE_ETHERNET_IP_STATE_LISTENERS
 void IPAddressEthernetInfo::setup() { ethernet::global_eth_component->add_ip_state_listener(this); }
@@ -17,16 +17,20 @@ void IPAddressEthernetInfo::on_ip_state(const network::IPAddresses &ips, const n
   char buf[network::IP_ADDRESS_BUFFER_SIZE];
   ips[0].str_to(buf);
   this->publish_state(buf);
+#ifdef ETHERNET_INFO_IP_SENSOR_COUNT
   uint8_t sensor = 0;
   for (const auto &ip : ips) {
-    if (ip.is_set()) {
-      if (this->ip_sensors_[sensor] != nullptr) {
-        ip.str_to(buf);
-        this->ip_sensors_[sensor]->publish_state(buf);
-      }
-      sensor++;
+    if (!ip.is_set())
+      continue;
+    if (sensor == ETHERNET_INFO_IP_SENSOR_COUNT)
+      break;
+    if (this->ip_sensors_[sensor] != nullptr) {
+      ip.str_to(buf);
+      this->ip_sensors_[sensor]->publish_state(buf);
     }
+    sensor++;
   }
+#endif
 }
 
 void DNSAddressEthernetInfo::setup() { ethernet::global_eth_component->add_ip_state_listener(this); }
@@ -49,4 +53,4 @@ void MACAddressEthernetInfo::dump_config() { LOG_TEXT_SENSOR("", "EthernetInfo M
 
 }  // namespace esphome::ethernet_info
 
-#endif  // USE_ESP32
+#endif  // USE_ETHERNET

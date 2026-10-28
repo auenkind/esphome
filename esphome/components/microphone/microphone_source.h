@@ -7,15 +7,14 @@
 #include <bitset>
 #include <cstddef>
 #include <cstdint>
-#include <functional>
+#include <span>
 #include <vector>
 
-namespace esphome {
-namespace microphone {
+namespace esphome::microphone {
 
 static const int32_t MAX_GAIN_FACTOR = 64;
 
-class MicrophoneSource {
+class MicrophoneSource final {
   /*
    * @brief Helper class that handles converting raw microphone data to a requested format.
    * Components requesting microphone audio should register a callback through this class instead of registering a
@@ -36,7 +35,7 @@ class MicrophoneSource {
    */
  public:
   MicrophoneSource(Microphone *mic, uint8_t bits_per_sample, int32_t gain_factor, bool passive)
-      : mic_(mic), bits_per_sample_(bits_per_sample), gain_factor_(gain_factor), passive_(passive) {}
+      : mic_(mic), gain_factor_(gain_factor), passive_(passive), bits_per_sample_(bits_per_sample) {}
 
   /// @brief Enables a channel to be processed through the callback.
   ///
@@ -47,7 +46,26 @@ class MicrophoneSource {
   /// @param channel 0-indexed channel number to enable
   void add_channel(uint8_t channel) { this->channels_.set(channel); }
 
-  void add_data_callback(std::function<void(const std::vector<uint8_t> &)> &&data_callback);
+  /// Same callbacks as Microphone::add_data_callback; stream_info is the processed format.
+  template<typename F> void add_data_callback(F &&data_callback) {
+    this->mic_->add_data_callback(
+        [this, callback = as_capture_callback(std::forward<F>(data_callback))](const AudioCapture &capture) {
+          if (this->enabled_ || this->passive_) {
+            if (this->processed_samples_ == nullptr) {
+              // Create vector if its unused
+              this->processed_samples_ = std::make_shared<std::vector<uint8_t>>();
+            }
+
+            // Take temporary ownership of samples vector to avoid deallocation before the callback finishes
+            std::shared_ptr<std::vector<uint8_t>> output_samples = this->processed_samples_;
+            this->process_audio_(capture.data, capture.stream_info, *output_samples);
+            callback(AudioCapture{*output_samples,
+                                  audio::AudioStreamInfo(this->bits_per_sample_, this->channels_.count(),
+                                                         capture.stream_info.get_sample_rate()),
+                                  capture.capture_time_us});
+          }
+        });
+  }
 
   void set_gain_factor(int32_t gain_factor) { this->gain_factor_ = clamp<int32_t>(gain_factor, 1, MAX_GAIN_FACTOR); }
   int32_t get_gain_factor() { return this->gain_factor_; }
@@ -64,17 +82,17 @@ class MicrophoneSource {
   bool is_stopped() const { return !this->is_running(); };
 
  protected:
-  void process_audio_(const std::vector<uint8_t> &data, std::vector<uint8_t> &filtered_data);
+  void process_audio_(std::span<const uint8_t> data, const audio::AudioStreamInfo &source_info,
+                      std::vector<uint8_t> &filtered_data);
 
   std::shared_ptr<std::vector<uint8_t>> processed_samples_;
 
   Microphone *mic_;
-  uint8_t bits_per_sample_;
   std::bitset<8> channels_;
   int32_t gain_factor_;
   bool enabled_{false};
   bool passive_;  // Only pass audio if ``mic_`` is already running
+  uint8_t bits_per_sample_;
 };
 
-}  // namespace microphone
-}  // namespace esphome
+}  // namespace esphome::microphone

@@ -1,10 +1,9 @@
 #include "sm10bit_base.h"
 #include "esphome/core/log.h"
 
-namespace esphome {
-namespace sm10bit_base {
+namespace esphome::sm10bit_base {
 
-static const char *const TAG = "sm10bit_base";
+ESPHOME_LOG_TAG(TAG, "sm10bit_base");
 
 static const uint8_t SM10BIT_ADDR_STANDBY = 0x0;
 static const uint8_t SM10BIT_ADDR_START_3CH = 0x8;
@@ -81,7 +80,8 @@ void Sm10BitBase::loop() {
   this->update_ = false;
 }
 
-void Sm10BitBase::set_channel_value_(uint8_t channel, uint16_t value) {
+void Sm10BitBase::write_channel(uint8_t channel, float state) {
+  auto value = static_cast<uint16_t>(state * 0x3FF);
   if (this->pwm_amounts_[channel] != value) {
     this->update_ = true;
     this->update_channel_ = channel;
@@ -127,5 +127,4 @@ void Sm10BitBase::write_buffer_(uint8_t *buffer, uint8_t size) {
   delayMicroseconds(SM10BIT_DELAY);
 }
 
-}  // namespace sm10bit_base
-}  // namespace esphome
+}  // namespace esphome::sm10bit_base

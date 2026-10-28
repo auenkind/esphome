@@ -1,7 +1,15 @@
 #include "nextion_component.h"
+#include "esphome/core/progmem.h"
 
-namespace esphome {
-namespace nextion {
+namespace esphome::nextion {
+
+PROGMEM_STRING_TABLE(NextionQueueTypeStrings, "NO_RESULT", "SENSOR", "BINARY_SENSOR", "SWITCH", "TEXT_SENSOR",
+                     "WAVEFORM_SENSOR");
+static_assert(NextionQueueTypeStrings::COUNT == NextionQueueType::WAVEFORM_SENSOR + 1, "queue type names out of sync");
+
+const LogString *NextionComponentBase::get_queue_type_string() const {
+  return NextionQueueTypeStrings::get_log_str(this->get_queue_type(), 0);
+}
 
 void NextionComponent::set_background_color(Color bco) {
   if (this->variable_name_ == this->variable_name_to_send_) {
@@ -88,7 +96,7 @@ void NextionComponent::update_component_settings(bool force_update) {
     this->send_state_to_nextion();
   }
 
-  if (this->component_flags_.bco_needs_update || (force_update && this->component_flags_.bco2_is_set)) {
+  if (this->component_flags_.bco_needs_update || (force_update && this->component_flags_.bco_is_set)) {
     this->nextion_->set_component_background_color(this->variable_name_.c_str(), this->bco_);
     this->component_flags_.bco_needs_update = false;
   }
@@ -110,5 +118,4 @@ void NextionComponent::update_component_settings(bool force_update) {
     this->component_flags_.font_id_needs_update = false;
   }
 }
-}  // namespace nextion
-}  // namespace esphome
+}  // namespace esphome::nextion

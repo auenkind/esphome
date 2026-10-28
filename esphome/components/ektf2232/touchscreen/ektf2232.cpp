@@ -4,10 +4,9 @@
 
 #include <vector>
 
-namespace esphome {
-namespace ektf2232 {
+namespace esphome::ektf2232 {
 
-static const char *const TAG = "ektf2232";
+ESPHOME_LOG_TAG(TAG, "ektf2232");
 
 static const uint8_t SOFT_RESET_CMD[4] = {0x77, 0x77, 0x77, 0x77};
 static const uint8_t HELLO[4] = {0x55, 0x55, 0x55, 0x55};
@@ -21,9 +20,7 @@ void EKTF2232Touchscreen::setup() {
 
   this->attach_interrupt_(this->interrupt_pin_, gpio::INTERRUPT_FALLING_EDGE);
 
-  this->reset_pin_->setup();
-
-  this->hard_reset_();
+  pulse_reset(this->reset_pin_, {.low_ms = 15, .high_after_ms = 15});
   if (!this->soft_reset_()) {
     ESP_LOGE(TAG, "Failed to soft reset EKT2232!");
     this->interrupt_pin_->detach_interrupt();
@@ -97,13 +94,6 @@ bool EKTF2232Touchscreen::get_power_state() {
   return (received[1] >> 3) & 1;
 }
 
-void EKTF2232Touchscreen::hard_reset_() {
-  this->reset_pin_->digital_write(false);
-  delay(15);
-  this->reset_pin_->digital_write(true);
-  delay(15);
-}
-
 bool EKTF2232Touchscreen::soft_reset_() {
   auto err = this->write(SOFT_RESET_CMD, 4);
   if (err != i2c::ERROR_OK)
@@ -130,5 +120,4 @@ void EKTF2232Touchscreen::dump_config() {
   LOG_PIN("  Reset Pin: ", this->reset_pin_);
 }
 
-}  // namespace ektf2232
-}  // namespace esphome
+}  // namespace esphome::ektf2232

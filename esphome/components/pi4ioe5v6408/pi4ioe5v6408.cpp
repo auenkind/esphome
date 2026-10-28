@@ -1,8 +1,8 @@
 #include "pi4ioe5v6408.h"
+#include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
-namespace esphome {
-namespace pi4ioe5v6408 {
+namespace esphome::pi4ioe5v6408 {
 
 static const uint8_t PI4IOE5V6408_REGISTER_DEVICE_ID = 0x01;
 static const uint8_t PI4IOE5V6408_REGISTER_IO_DIR = 0x03;
@@ -15,7 +15,7 @@ static const uint8_t PI4IOE5V6408_REGISTER_IN_STATE = 0x0F;
 static const uint8_t PI4IOE5V6408_REGISTER_INTERRUPT_ENABLE_MASK = 0x11;
 static const uint8_t PI4IOE5V6408_REGISTER_INTERRUPT_STATUS = 0x13;
 
-static const char *const TAG = "pi4ioe5v6408";
+ESPHOME_LOG_TAG(TAG, "pi4ioe5v6408");
 
 void PI4IOE5V6408Component::setup() {
   if (this->reset_) {
@@ -23,23 +23,23 @@ void PI4IOE5V6408Component::setup() {
     this->reg(PI4IOE5V6408_REGISTER_OUT_HIGH_IMPEDENCE) = 0b00000000;
   } else {
     if (!this->read_gpio_modes_()) {
-      this->mark_failed();
+      this->mark_failed(LOG_STR(ESP_LOG_MSG_COMM_FAIL));
       ESP_LOGE(TAG, "Failed to read GPIO modes");
       return;
     }
     if (!this->read_gpio_outputs_()) {
-      this->mark_failed();
+      this->mark_failed(LOG_STR(ESP_LOG_MSG_COMM_FAIL));
       ESP_LOGE(TAG, "Failed to read GPIO outputs");
       return;
     }
   }
+
+  this->setup_interrupt_pin_();
 }
 void PI4IOE5V6408Component::dump_config() {
   ESP_LOGCONFIG(TAG, "PI4IOE5V6408:");
+  LOG_PIN("  Interrupt Pin: ", this->interrupt_pin_);
   LOG_I2C_DEVICE(this)
-  if (this->is_failed()) {
-    ESP_LOGE(TAG, ESP_LOG_MSG_COMM_FAIL);
-  }
 }
 void PI4IOE5V6408Component::pin_mode(uint8_t pin, gpio::Flags flags) {
   if (flags & gpio::FLAG_OUTPUT) {
@@ -55,24 +55,21 @@ void PI4IOE5V6408Component::pin_mode(uint8_t pin, gpio::Flags flags) {
       this->pull_up_down_mask_ &= ~(1 << pin);
       this->pull_enable_mask_ |= 1 << pin;
     }
+    this->enable_polling_loop_();
   }
   // Write GPIO to enable input mode
   this->write_gpio_modes_();
 }
 
-void PI4IOE5V6408Component::loop() { this->reset_pin_cache_(); }
-
 bool PI4IOE5V6408Component::read_gpio_outputs_() {
   if (this->is_failed())
     return false;
 
-  uint8_t data;
-  if (!this->read_byte(PI4IOE5V6408_REGISTER_OUT_SET, &data)) {
-    this->status_set_warning(LOG_STR("Failed to read output register"));
+  uint8_t data{0};
+  if (!this->status_comm_result(this->read_byte(PI4IOE5V6408_REGISTER_OUT_SET, &data),
+                                LOG_STR("Failed to read output register")))
     return false;
-  }
   this->output_mask_ = data;
-  this->status_clear_warning();
   return true;
 }
 
@@ -80,16 +77,14 @@ bool PI4IOE5V6408Component::read_gpio_modes_() {
   if (this->is_failed())
     return false;
 
-  uint8_t data;
-  if (!this->read_byte(PI4IOE5V6408_REGISTER_IO_DIR, &data)) {
-    this->status_set_warning(LOG_STR("Failed to read GPIO modes"));
+  uint8_t data{0};
+  if (!this->status_comm_result(this->read_byte(PI4IOE5V6408_REGISTER_IO_DIR, &data),
+                                LOG_STR("Failed to read GPIO modes")))
     return false;
-  }
 #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
   ESP_LOGV(TAG, "Read GPIO modes: 0b" BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(data));
 #endif
   this->mode_mask_ = data;
-  this->status_clear_warning();
   return true;
 }
 
@@ -97,13 +92,11 @@ bool PI4IOE5V6408Component::digital_read_hw(uint8_t pin) {
   if (this->is_failed())
     return false;
 
-  uint8_t data;
-  if (!this->read_byte(PI4IOE5V6408_REGISTER_IN_STATE, &data)) {
-    this->status_set_warning(LOG_STR("Failed to read GPIO state"));
+  uint8_t data{0};
+  if (!this->status_comm_result(this->read_byte(PI4IOE5V6408_REGISTER_IN_STATE, &data),
+                                LOG_STR("Failed to read GPIO state")))
     return false;
-  }
   this->input_mask_ = data;
-  this->status_clear_warning();
   return true;
 }
 
@@ -111,19 +104,13 @@ void PI4IOE5V6408Component::digital_write_hw(uint8_t pin, bool value) {
   if (this->is_failed())
     return;
 
-  if (value) {
-    this->output_mask_ |= (1 << pin);
-  } else {
-    this->output_mask_ &= ~(1 << pin);
-  }
-  if (!this->write_byte(PI4IOE5V6408_REGISTER_OUT_SET, this->output_mask_)) {
-    this->status_set_warning(LOG_STR("Failed to write output register"));
+  assign_bits(this->output_mask_, 1 << pin, value);
+  if (!this->status_comm_result(this->write_byte(PI4IOE5V6408_REGISTER_OUT_SET, this->output_mask_),
+                                LOG_STR("Failed to write output register")))
     return;
-  }
 #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
   ESP_LOGV(TAG, "Wrote GPIO output: 0b" BYTE_TO_BINARY_PATTERN, BYTE_TO_BINARY(this->output_mask_));
 #endif
-  this->status_clear_warning();
 }
 
 bool PI4IOE5V6408Component::write_gpio_modes_() {
@@ -142,11 +129,19 @@ bool PI4IOE5V6408Component::write_gpio_modes_() {
     this->status_set_warning(LOG_STR("Failed to write GPIO pull enable"));
     return false;
   }
+  // Enable interrupts for input pins when interrupt pin is configured
+  // (input pins have mode_mask_ bit cleared)
+  if (this->interrupt_pin_ != nullptr &&
+      !this->write_byte(PI4IOE5V6408_REGISTER_INTERRUPT_ENABLE_MASK, static_cast<uint8_t>(~this->mode_mask_))) {
+    this->status_set_warning(LOG_STR("Failed to write interrupt enable mask"));
+    return false;
+  }
 #if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
   ESP_LOGV(TAG,
-           "Wrote GPIO modes: 0b" BYTE_TO_BINARY_PATTERN "\n"
-           "Wrote GPIO pullup/pulldown: 0b" BYTE_TO_BINARY_PATTERN "\n"
-           "Wrote GPIO pull enable: 0b" BYTE_TO_BINARY_PATTERN,
+           "Wrote GPIO config:\n"
+           "  modes: 0b" BYTE_TO_BINARY_PATTERN "\n"
+           "  pullup/pulldown: 0b" BYTE_TO_BINARY_PATTERN "\n"
+           "  pull enable: 0b" BYTE_TO_BINARY_PATTERN,
            BYTE_TO_BINARY(this->mode_mask_), BYTE_TO_BINARY(this->pull_up_down_mask_),
            BYTE_TO_BINARY(this->pull_enable_mask_));
 #endif
@@ -156,17 +151,6 @@ bool PI4IOE5V6408Component::write_gpio_modes_() {
 
 bool PI4IOE5V6408Component::digital_read_cache(uint8_t pin) { return (this->input_mask_ & (1 << pin)); }
 
-float PI4IOE5V6408Component::get_setup_priority() const { return setup_priority::IO; }
+}  // namespace esphome::pi4ioe5v6408
 
-void PI4IOE5V6408GPIOPin::setup() { this->pin_mode(this->flags_); }
-void PI4IOE5V6408GPIOPin::pin_mode(gpio::Flags flags) { this->parent_->pin_mode(this->pin_, flags); }
-bool PI4IOE5V6408GPIOPin::digital_read() { return this->parent_->digital_read(this->pin_) != this->inverted_; }
-void PI4IOE5V6408GPIOPin::digital_write(bool value) {
-  this->parent_->digital_write(this->pin_, value != this->inverted_);
-}
-size_t PI4IOE5V6408GPIOPin::dump_summary(char *buffer, size_t len) const {
-  return buf_append_printf(buffer, len, 0, "%u via PI4IOE5V6408", this->pin_);
-}
-
-}  // namespace pi4ioe5v6408
-}  // namespace esphome
+ESPHOME_EXPANDER_PIN_SUMMARY(esphome::pi4ioe5v6408::PI4IOE5V6408Component, "%u via PI4IOE5V6408")

@@ -1,23 +1,20 @@
 #pragma once
 
-#include "esphome/components/gpio_expander/cached_gpio.h"
+#include "esphome/components/gpio_expander/cached_gpio_component.h"
 #include "esphome/core/component.h"
 #include "esphome/core/hal.h"
 
-namespace esphome {
-namespace mcp23xxx_base {
+namespace esphome::mcp23xxx_base {
 
 enum MCP23XXXInterruptMode : uint8_t { MCP23XXX_NO_INTERRUPT = 0, MCP23XXX_CHANGE, MCP23XXX_RISING, MCP23XXX_FALLING };
 
-template<uint8_t N> class MCP23XXXBase : public Component, public gpio_expander::CachedGpioExpander<uint8_t, N> {
+template<uint8_t N> class MCP23XXXBase : public gpio_expander::CachedGpioExpanderComponent<uint8_t, N> {
  public:
   virtual void pin_mode(uint8_t pin, gpio::Flags flags);
   virtual void pin_interrupt_mode(uint8_t pin, MCP23XXXInterruptMode interrupt_mode);
 
   void set_open_drain_ints(const bool value) { this->open_drain_ints_ = value; }
-  float get_setup_priority() const override { return setup_priority::IO; }
-
-  void loop() override { this->reset_pin_cache_(); }
+  InternalGPIOPin *get_interrupt_pin() const { return this->interrupt_pin_; }
 
  protected:
   // read a given register
@@ -30,7 +27,7 @@ template<uint8_t N> class MCP23XXXBase : public Component, public gpio_expander:
   bool open_drain_ints_;
 };
 
-template<uint8_t N> class MCP23XXXGPIOPin : public GPIOPin {
+template<uint8_t N> class MCP23XXXGPIOPin final : public GPIOPin {
  public:
   void setup() override;
   void pin_mode(gpio::Flags flags) override;
@@ -54,5 +51,4 @@ template<uint8_t N> class MCP23XXXGPIOPin : public GPIOPin {
   MCP23XXXInterruptMode interrupt_mode_;
 };
 
-}  // namespace mcp23xxx_base
-}  // namespace esphome
+}  // namespace esphome::mcp23xxx_base

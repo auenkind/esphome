@@ -1,8 +1,8 @@
 #include "pca6416a.h"
+#include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
-namespace esphome {
-namespace pca6416a {
+namespace esphome::pca6416a {
 
 enum PCA6416AGPIORegisters {
   // 0 side
@@ -21,14 +21,14 @@ enum PCA6416AGPIORegisters {
   PCAL6416A_PULL_DIR1 = 0x49,
 };
 
-static const char *const TAG = "pca6416a";
+ESPHOME_LOG_TAG(TAG, "pca6416a");
 
 void PCA6416AComponent::setup() {
   // Test to see if device exists
   uint8_t value;
   if (!this->read_register_(PCA6416A_INPUT0, &value)) {
     ESP_LOGE(TAG, "PCA6416A not available under 0x%02X", this->address_);
-    this->mark_failed();
+    this->mark_failed(LOG_STR(ESP_LOG_MSG_COMM_FAIL));
     return;
   }
 
@@ -49,11 +49,8 @@ void PCA6416AComponent::setup() {
 
   ESP_LOGD(TAG, "Initialization complete. Warning: %d, Error: %d", this->status_has_warning(),
            this->status_has_error());
-}
 
-void PCA6416AComponent::loop() {
-  // Invalidate cache at the start of each loop
-  this->reset_pin_cache_();
+  this->setup_interrupt_pin_();
 }
 
 void PCA6416AComponent::dump_config() {
@@ -62,10 +59,8 @@ void PCA6416AComponent::dump_config() {
   } else {
     ESP_LOGCONFIG(TAG, "PCA6416A:");
   }
+  LOG_PIN("  Interrupt Pin: ", this->interrupt_pin_);
   LOG_I2C_DEVICE(this)
-  if (this->is_failed()) {
-    ESP_LOGE(TAG, ESP_LOG_MSG_COMM_FAIL);
-  }
 }
 
 bool PCA6416AComponent::digital_read_hw(uint8_t pin) {
@@ -112,6 +107,8 @@ void PCA6416AComponent::pin_mode(uint8_t pin, gpio::Flags flags) {
   } else if (flags == gpio::FLAG_OUTPUT) {
     this->update_register_(pin, false, io_dir);
   }
+  if (flags & gpio::FLAG_INPUT)
+    this->enable_polling_loop_();
 }
 
 bool PCA6416AComponent::read_register_(uint8_t reg, uint8_t *value) {
@@ -121,13 +118,10 @@ bool PCA6416AComponent::read_register_(uint8_t reg, uint8_t *value) {
   }
 
   this->last_error_ = this->read_register(reg, value, 1);
-  if (this->last_error_ != i2c::ERROR_OK) {
-    this->status_set_warning();
+  if (!this->status_comm_result(this->last_error_ == i2c::ERROR_OK)) {
     ESP_LOGE(TAG, "read_register_(): I2C I/O error: %d", (int) this->last_error_);
     return false;
   }
-
-  this->status_clear_warning();
   return true;
 }
 
@@ -138,13 +132,10 @@ bool PCA6416AComponent::write_register_(uint8_t reg, uint8_t value) {
   }
 
   this->last_error_ = this->write_register(reg, &value, 1);
-  if (this->last_error_ != i2c::ERROR_OK) {
-    this->status_set_warning();
+  if (!this->status_comm_result(this->last_error_ == i2c::ERROR_OK)) {
     ESP_LOGE(TAG, "write_register_(): I2C I/O error: %d", (int) this->last_error_);
     return false;
   }
-
-  this->status_clear_warning();
   return true;
 }
 
@@ -159,11 +150,7 @@ void PCA6416AComponent::update_register_(uint8_t pin, bool pin_value, uint8_t re
     this->read_register_(reg_addr, &reg_value);
   }
 
-  if (pin_value) {
-    reg_value |= 1 << bit;
-  } else {
-    reg_value &= ~(1 << bit);
-  }
+  assign_bits(reg_value, 1 << bit, pin_value);
 
   this->write_register_(reg_addr, reg_value);
 
@@ -174,15 +161,6 @@ void PCA6416AComponent::update_register_(uint8_t pin, bool pin_value, uint8_t re
   }
 }
 
-float PCA6416AComponent::get_setup_priority() const { return setup_priority::IO; }
+}  // namespace esphome::pca6416a
 
-void PCA6416AGPIOPin::setup() { pin_mode(flags_); }
-void PCA6416AGPIOPin::pin_mode(gpio::Flags flags) { this->parent_->pin_mode(this->pin_, flags); }
-bool PCA6416AGPIOPin::digital_read() { return this->parent_->digital_read(this->pin_) != this->inverted_; }
-void PCA6416AGPIOPin::digital_write(bool value) { this->parent_->digital_write(this->pin_, value != this->inverted_); }
-size_t PCA6416AGPIOPin::dump_summary(char *buffer, size_t len) const {
-  return buf_append_printf(buffer, len, 0, "%u via PCA6416A", this->pin_);
-}
-
-}  // namespace pca6416a
-}  // namespace esphome
+ESPHOME_EXPANDER_PIN_SUMMARY(esphome::pca6416a::PCA6416AComponent, "%u via PCA6416A")

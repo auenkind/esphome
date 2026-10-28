@@ -1,10 +1,10 @@
 #include "mcp23x08_base.h"
+#include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
-namespace esphome {
-namespace mcp23x08_base {
+namespace esphome::mcp23x08_base {
 
-static const char *const TAG = "mcp23x08_base";
+ESPHOME_LOG_TAG(TAG, "mcp23x08_base");
 
 bool MCP23X08Base::digital_read_hw(uint8_t pin) {
   if (!this->read_reg(mcp23x08_base::MCP23X08_GPIO, &this->input_mask_)) {
@@ -32,6 +32,12 @@ void MCP23X08Base::pin_mode(uint8_t pin, gpio::Flags flags) {
   } else if (flags == gpio::FLAG_OUTPUT) {
     this->update_reg(pin, false, iodir);
   }
+  if (flags & gpio::FLAG_INPUT) {
+    // With an interrupt pin, INT fires on any change of an input
+    if (this->interrupt_pin_ != nullptr)
+      this->pin_interrupt_mode(pin, mcp23xxx_base::MCP23XXX_CHANGE);
+    this->enable_polling_loop_();
+  }
 }
 
 void MCP23X08Base::pin_interrupt_mode(uint8_t pin, mcp23xxx_base::MCP23XXXInterruptMode interrupt_mode) {
@@ -47,12 +53,12 @@ void MCP23X08Base::pin_interrupt_mode(uint8_t pin, mcp23xxx_base::MCP23XXXInterr
     case mcp23xxx_base::MCP23XXX_RISING:
       this->update_reg(pin, true, gpinten);
       this->update_reg(pin, true, intcon);
-      this->update_reg(pin, true, defval);
+      this->update_reg(pin, false, defval);
       break;
     case mcp23xxx_base::MCP23XXX_FALLING:
       this->update_reg(pin, true, gpinten);
       this->update_reg(pin, true, intcon);
-      this->update_reg(pin, false, defval);
+      this->update_reg(pin, true, defval);
       break;
     case mcp23xxx_base::MCP23XXX_NO_INTERRUPT:
       this->update_reg(pin, false, gpinten);
@@ -69,11 +75,7 @@ void MCP23X08Base::update_reg(uint8_t pin, bool pin_value, uint8_t reg_addr) {
     this->read_reg(reg_addr, &reg_value);
   }
 
-  if (pin_value) {
-    reg_value |= 1 << bit;
-  } else {
-    reg_value &= ~(1 << bit);
-  }
+  assign_bits(reg_value, 1 << bit, pin_value);
 
   this->write_reg(reg_addr, reg_value);
 
@@ -82,5 +84,4 @@ void MCP23X08Base::update_reg(uint8_t pin, bool pin_value, uint8_t reg_addr) {
   }
 }
 
-}  // namespace mcp23x08_base
-}  // namespace esphome
+}  // namespace esphome::mcp23x08_base

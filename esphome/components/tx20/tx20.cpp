@@ -1,18 +1,18 @@
 #include "tx20.h"
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
+#include "esphome/core/progmem.h"
 
 #include <array>
 
-namespace esphome {
-namespace tx20 {
+namespace esphome::tx20 {
 
-static const char *const TAG = "tx20";
+ESPHOME_LOG_TAG(TAG, "tx20");
 static const uint8_t MAX_BUFFER_SIZE = 41;
 static const uint16_t TX20_MAX_TIME = MAX_BUFFER_SIZE * 1200 + 5000;
 static const uint16_t TX20_BIT_TIME = 1200;
-static const char *const DIRECTIONS[] = {"N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
-                                         "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"};
+PROGMEM_STRING_TABLE(DirectionStrings, "N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE", "S", "SSW", "SW", "WSW", "W",
+                     "WNW", "NW", "NNW");
 
 void Tx20Component::setup() {
   this->pin_->setup();
@@ -38,7 +38,11 @@ void Tx20Component::loop() {
   }
 }
 
-std::string Tx20Component::get_wind_cardinal_direction() const { return this->wind_cardinal_direction_; }
+std::string Tx20Component::get_wind_cardinal_direction() const {
+  if (this->wind_direction_index_ >= DirectionStrings::COUNT)
+    return {};
+  return progmem_string(DirectionStrings::get_progmem_str(this->wind_direction_index_, 0));
+}
 
 void Tx20Component::decode_and_publish_() {
   ESP_LOGVV(TAG, "Decode Tx20");
@@ -136,9 +140,8 @@ void Tx20Component::decode_and_publish_() {
       }
       if (tx20_se == tx20_sb) {
         tx20_wind_direction = tx20_se;
-        if (tx20_wind_direction >= 0 && tx20_wind_direction < 16) {
-          wind_cardinal_direction_ = DIRECTIONS[tx20_wind_direction];
-        }
+        if (tx20_wind_direction < DirectionStrings::COUNT)
+          this->wind_direction_index_ = tx20_wind_direction;
         ESP_LOGV(TAG, "WindDirection %d", tx20_wind_direction);
         if (this->wind_direction_degrees_sensor_ != nullptr)
           this->wind_direction_degrees_sensor_->publish_state(float(tx20_wind_direction) * 22.5f);
@@ -165,7 +168,7 @@ void IRAM_ATTR Tx20ComponentStore::gpio_intr(Tx20ComponentStore *arg) {
     }
     arg->buffer[arg->buffer_index] = 1;
     arg->start_time = now;
-    arg->buffer_index++;  // NOLINT(clang-diagnostic-deprecated-volatile)
+    arg->buffer_index += 1;
     return;
   }
   const uint32_t delay = now - arg->start_time;
@@ -191,12 +194,12 @@ void IRAM_ATTR Tx20ComponentStore::gpio_intr(Tx20ComponentStore *arg) {
     arg->tx20_available = true;
     return;
   }
-  if (index <= MAX_BUFFER_SIZE) {
+  if (index < MAX_BUFFER_SIZE) {
     arg->buffer[index] = delay;
   }
   arg->spent_time += delay;
   arg->start_time = now;
-  arg->buffer_index++;  // NOLINT(clang-diagnostic-deprecated-volatile)
+  arg->buffer_index += 1;
 }
 void IRAM_ATTR Tx20ComponentStore::reset() {
   tx20_available = false;
@@ -206,5 +209,4 @@ void IRAM_ATTR Tx20ComponentStore::reset() {
   start_time = 0;
 }
 
-}  // namespace tx20
-}  // namespace esphome
+}  // namespace esphome::tx20

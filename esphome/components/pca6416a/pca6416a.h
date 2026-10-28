@@ -3,24 +3,19 @@
 #include "esphome/core/component.h"
 #include "esphome/core/hal.h"
 #include "esphome/components/i2c/i2c.h"
-#include "esphome/components/gpio_expander/cached_gpio.h"
+#include "esphome/components/gpio_expander/cached_gpio_component.h"
+#include "esphome/components/gpio_expander/expander_gpio_pin.h"
 
-namespace esphome {
-namespace pca6416a {
+namespace esphome::pca6416a {
 
-class PCA6416AComponent : public Component,
-                          public i2c::I2CDevice,
-                          public gpio_expander::CachedGpioExpander<uint8_t, 16> {
+class PCA6416AComponent final : public gpio_expander::CachedGpioExpanderComponent<uint8_t, 16>, public i2c::I2CDevice {
  public:
   PCA6416AComponent() = default;
 
   /// Check i2c availability and setup masks
   void setup() override;
-  void loop() override;
   /// Helper function to set the pin mode of a pin.
   void pin_mode(uint8_t pin, gpio::Flags flags);
-
-  float get_setup_priority() const override;
 
   void dump_config() override;
 
@@ -45,28 +40,8 @@ class PCA6416AComponent : public Component,
   bool has_pullup_{false};
 };
 
-/// Helper class to expose a PCA6416A pin as an internal input GPIO pin.
-class PCA6416AGPIOPin : public GPIOPin {
- public:
-  void setup() override;
-  void pin_mode(gpio::Flags flags) override;
-  bool digital_read() override;
-  void digital_write(bool value) override;
-  size_t dump_summary(char *buffer, size_t len) const override;
+using PCA6416AGPIOPin = gpio_expander::ExpanderGPIOPin<PCA6416AComponent>;
 
-  void set_parent(PCA6416AComponent *parent) { parent_ = parent; }
-  void set_pin(uint8_t pin) { pin_ = pin; }
-  void set_inverted(bool inverted) { inverted_ = inverted; }
-  void set_flags(gpio::Flags flags) { flags_ = flags; }
+}  // namespace esphome::pca6416a
 
-  gpio::Flags get_flags() const override { return this->flags_; }
-
- protected:
-  PCA6416AComponent *parent_;
-  uint8_t pin_;
-  bool inverted_;
-  gpio::Flags flags_;
-};
-
-}  // namespace pca6416a
-}  // namespace esphome
+ESPHOME_EXPANDER_PIN_SUMMARY_DECL(esphome::pca6416a::PCA6416AComponent);

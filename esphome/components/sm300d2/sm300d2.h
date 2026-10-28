@@ -4,10 +4,9 @@
 #include "esphome/components/sensor/sensor.h"
 #include "esphome/components/uart/uart.h"
 
-namespace esphome {
-namespace sm300d2 {
+namespace esphome::sm300d2 {
 
-class SM300D2Sensor : public PollingComponent, public uart::UARTDevice {
+class SM300D2Sensor final : public PollingComponent, public uart::UARTDevice {
  public:
   void set_co2_sensor(sensor::Sensor *co2_sensor) { co2_sensor_ = co2_sensor; }
   void set_formaldehyde_sensor(sensor::Sensor *formaldehyde_sensor) { formaldehyde_sensor_ = formaldehyde_sensor; }
@@ -21,8 +20,6 @@ class SM300D2Sensor : public PollingComponent, public uart::UARTDevice {
   void dump_config() override;
 
  protected:
-  uint16_t sm300d2_checksum_(uint8_t *ptr);
-
   sensor::Sensor *co2_sensor_{nullptr};
   sensor::Sensor *formaldehyde_sensor_{nullptr};
   sensor::Sensor *tvoc_sensor_{nullptr};
@@ -32,5 +29,4 @@ class SM300D2Sensor : public PollingComponent, public uart::UARTDevice {
   sensor::Sensor *humidity_sensor_{nullptr};
 };
 
-}  // namespace sm300d2
-}  // namespace esphome
+}  // namespace esphome::sm300d2

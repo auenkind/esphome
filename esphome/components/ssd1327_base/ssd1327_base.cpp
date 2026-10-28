@@ -2,10 +2,9 @@
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
-namespace esphome {
-namespace ssd1327_base {
+namespace esphome::ssd1327_base {
 
-static const char *const TAG = "ssd1327";
+ESPHOME_LOG_TAG(TAG, "ssd1327");
 
 static const uint8_t SSD1327_MAX_CONTRAST = 127;
 static const uint8_t SSD1327_COLORMASK = 0x0f;
@@ -145,7 +144,7 @@ void HOT SSD1327::draw_absolute_pixel_internal(int x, int y, Color color) {
   // ensure 'color4' is valid (only 4 bits aka 1 nibble) and shift the bits left when necessary
   color4 = (color4 & SSD1327_COLORMASK) << shift;
   // first mask off the nibble we must change...
-  this->buffer_[pos] &= (~SSD1327_COLORMASK >> shift);
+  this->buffer_[pos] &= (static_cast<uint8_t>(~SSD1327_COLORMASK) >> shift);
   // ...then lay the new nibble back on top. done!
   this->buffer_[pos] |= color4;
 }
@@ -161,18 +160,7 @@ void SSD1327::fill(Color color) {
   for (uint32_t i = 0; i < this->get_buffer_length_(); i++)
     this->buffer_[i] = fill;
 }
-void SSD1327::init_reset_() {
-  if (this->reset_pin_ != nullptr) {
-    this->reset_pin_->setup();
-    this->reset_pin_->digital_write(true);
-    delay(1);
-    // Trigger Reset
-    this->reset_pin_->digital_write(false);
-    delay(10);
-    // Wake up
-    this->reset_pin_->digital_write(true);
-  }
-}
+void SSD1327::init_reset_() { pulse_reset(this->reset_pin_, {.high_before_ms = 1, .low_ms = 10}); }
 const char *SSD1327::model_str_() {
   switch (this->model_) {
     case SSD1327_MODEL_128_128:
@@ -182,5 +170,4 @@ const char *SSD1327::model_str_() {
   }
 }
 
-}  // namespace ssd1327_base
-}  // namespace esphome
+}  // namespace esphome::ssd1327_base

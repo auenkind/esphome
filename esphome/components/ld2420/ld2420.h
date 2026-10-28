@@ -4,6 +4,8 @@
 #include "esphome/components/uart/uart.h"
 #include "esphome/core/automation.h"
 #include "esphome/core/helpers.h"
+#include <array>
+#include <span>
 #ifdef USE_TEXT_SENSOR
 #include "esphome/components/text_sensor/text_sensor.h"
 #endif
@@ -19,9 +21,15 @@
 
 namespace esphome::ld2420 {
 
-static const uint8_t CALIBRATE_SAMPLES = 64;
-static const uint8_t MAX_LINE_LENGTH = 46;  // Max characters for serial buffer
-static const uint8_t TOTAL_GATES = 16;
+namespace testing {
+class LD2420OperatingModeTest;
+}  // namespace testing
+
+static constexpr uint8_t CALIBRATE_SAMPLES = 64;
+// Energy frame is 45 bytes; +1 for null terminator, +4 so that a frame footer always lands
+// inside the buffer during footer-based resynchronization after losing sync.
+static constexpr uint8_t MAX_LINE_LENGTH = 50;
+static constexpr uint8_t TOTAL_GATES = 16;
 
 enum OpMode : uint8_t {
   OP_NORMAL_MODE = 1,
@@ -31,13 +39,13 @@ enum OpMode : uint8_t {
 
 class LD2420Listener {
  public:
-  virtual void on_presence(bool presence){};
-  virtual void on_distance(uint16_t distance){};
-  virtual void on_energy(uint16_t *sensor_energy, size_t size){};
-  virtual void on_fw_version(std::string &fw){};
+  virtual void on_presence(bool presence) {};
+  virtual void on_distance(uint16_t distance) {};
+  virtual void on_energy(uint16_t *sensor_energy, size_t size) {};
+  virtual void on_fw_version(const char *fw) {};
 };
 
-class LD2420Component : public Component, public uart::UARTDevice {
+class LD2420Component final : public Component, public uart::UARTDevice {
  public:
   struct CmdFrameT {
     uint32_t header{0};
@@ -86,6 +94,8 @@ class LD2420Component : public Component, public uart::UARTDevice {
   void publish_gate_still_threshold(uint8_t gate) {
     this->gate_still_threshold_numbers_[0]->publish_state(this->new_config.still_thresh[gate]);
   };
+  // Stores a threshold number's value for its gate, or for the selected gate with gate_select
+  void set_gate_threshold_value(number::Number *n, float value);
   void init_gate_config_numbers();
   void refresh_gate_config_numbers();
 #endif
@@ -95,18 +105,21 @@ class LD2420Component : public Component, public uart::UARTDevice {
   void set_restart_module_button(button::Button *button) { this->restart_module_button_ = button; };
   void set_factory_reset_button(button::Button *button) { this->factory_reset_button_ = button; };
 #endif
+#ifdef LD2420_LISTENER_COUNT
   void register_listener(LD2420Listener *listener) { this->listeners_.push_back(listener); }
+#endif
 
   void send_module_restart();
   void restart_module_action();
   void apply_config_action();
   void factory_reset_action();
   void revert_config_action();
-  float get_setup_priority() const override;
   int send_cmd_from_array(CmdFrameT cmd_frame);
   void report_gate_data();
-  void handle_cmd_error(uint8_t error);
+  void handle_cmd_error(uint16_t error);
   void set_operating_mode(const char *state);
+  void set_operating_mode(OpMode mode);
+  void change_operating_mode(OpMode mode);
   void auto_calibrate_sensitivity();
   void update_radar_data(uint16_t const *gate_energy, uint8_t sample_number);
   uint8_t set_config_mode(bool enable);
@@ -165,6 +178,7 @@ class LD2420Component : public Component, public uart::UARTDevice {
   void handle_energy_mode_(uint8_t *buffer, int len);
   void handle_ack_data_(uint8_t *buffer, int len);
   void readline_(int rx_data, uint8_t *buffer, int len);
+  void read_batch_(std::span<uint8_t, MAX_LINE_LENGTH> buffer);
   void set_calibration_(bool state) { this->calibration_ = state; };
   bool get_calibration_() { return this->calibration_; };
 
@@ -175,8 +189,8 @@ class LD2420Component : public Component, public uart::UARTDevice {
   number::Number *max_gate_distance_number_{nullptr};
   number::Number *gate_move_sensitivity_factor_number_{nullptr};
   number::Number *gate_still_sensitivity_factor_number_{nullptr};
-  std::vector<number::Number *> gate_still_threshold_numbers_ = std::vector<number::Number *>(16);
-  std::vector<number::Number *> gate_move_threshold_numbers_ = std::vector<number::Number *>(16);
+  std::array<number::Number *, TOTAL_GATES> gate_still_threshold_numbers_{};
+  std::array<number::Number *, TOTAL_GATES> gate_move_threshold_numbers_{};
 #endif
 
   uint16_t distance_{0};
@@ -189,7 +203,12 @@ class LD2420Component : public Component, public uart::UARTDevice {
   bool presence_{false};
   bool calibration_{false};
   CmdReplyT cmd_reply_;
-  std::vector<LD2420Listener *> listeners_{};
+#ifdef LD2420_LISTENER_COUNT
+  StaticVector<LD2420Listener *, LD2420_LISTENER_COUNT> listeners_;
+#endif
+
+  // clang-tidy compiles the host tests without USE_HOST, so the friend is unconditional
+  friend class testing::LD2420OperatingModeTest;
 };
 
 }  // namespace esphome::ld2420

@@ -3,28 +3,14 @@
 #include "esphome/core/helpers.h"
 #include "esphome/core/log.h"
 
-namespace esphome {
-namespace pcd8544 {
+namespace esphome::pcd8544 {
 
-static const char *const TAG = "pcd_8544";
+ESPHOME_LOG_TAG(TAG, "pcd_8544");
 
 void PCD8544::setup_pins_() {
   this->spi_setup();
-  this->init_reset_();
+  pulse_reset(this->reset_pin_, {.high_before_ms = 1, .low_ms = 10});
   this->dc_pin_->setup();
-}
-
-void PCD8544::init_reset_() {
-  if (this->reset_pin_ != nullptr) {
-    this->reset_pin_->setup();
-    this->reset_pin_->digital_write(true);
-    delay(1);
-    // Trigger Reset
-    this->reset_pin_->digital_write(false);
-    delay(10);
-    // Wake up
-    this->reset_pin_->digital_write(true);
-  }
 }
 
 void PCD8544::initialize() {
@@ -91,11 +77,7 @@ void HOT PCD8544::draw_absolute_pixel_internal(int x, int y, Color color) {
 
   uint16_t pos = x + (y / 8) * this->get_width_internal();
   uint8_t subpos = y % 8;
-  if (color.is_on()) {
-    this->buffer_[pos] |= (1 << subpos);
-  } else {
-    this->buffer_[pos] &= ~(1 << subpos);
-  }
+  assign_bits(this->buffer_[pos], 1 << subpos, color.is_on());
 }
 
 void PCD8544::dump_config() {
@@ -128,5 +110,4 @@ void PCD8544::fill(Color color) {
     this->buffer_[i] = fill;
 }
 
-}  // namespace pcd8544
-}  // namespace esphome
+}  // namespace esphome::pcd8544

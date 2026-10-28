@@ -11,6 +11,8 @@ import socket
 
 import pytest
 
+from .log_utils import LineWaiter
+from .state_utils import assert_device_name, require_service
 from .types import APIClientConnectedFactory, RunCompiledFunction
 
 
@@ -80,7 +82,7 @@ async def udp_listener(port: int = 0) -> AsyncGenerator[tuple[int, UDPReceiver]]
                     receiver.on_message(data)
             except BlockingIOError:
                 await asyncio.sleep(0.01)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 break
 
     task = asyncio.create_task(receive_messages())
@@ -93,43 +95,41 @@ async def udp_listener(port: int = 0) -> AsyncGenerator[tuple[int, UDPReceiver]]
         sock.close()
 
 
+def _get_free_udp_port() -> int:
+    """Get a free UDP port by binding to port 0 and releasing."""
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    return port
+
+
 @pytest.mark.asyncio
 async def test_udp_send_receive(
     yaml_config: str,
     run_compiled: RunCompiledFunction,
     api_client_connected: APIClientConnectedFactory,
 ) -> None:
-    """Test UDP component can send messages with multiple addresses configured."""
-    # Track log lines to verify dump_config output
-    log_lines: list[str] = []
+    """Test UDP component can send and receive messages."""
+    waiter = LineWaiter()
 
-    def on_log_line(line: str) -> None:
-        log_lines.append(line)
-
-    async with udp_listener() as (udp_port, receiver):
-        # Replace placeholders in the config
-        config = yaml_config.replace("UDP_LISTEN_PORT_PLACEHOLDER", str(udp_port + 1))
-        config = config.replace("UDP_BROADCAST_PORT_PLACEHOLDER", str(udp_port))
+    async with udp_listener() as (broadcast_port, receiver):
+        listen_port = _get_free_udp_port()
+        config = yaml_config.replace("UDP_LISTEN_PORT_PLACEHOLDER", str(listen_port))
+        config = config.replace("UDP_BROADCAST_PORT_PLACEHOLDER", str(broadcast_port))
 
         async with (
-            run_compiled(config, line_callback=on_log_line),
+            run_compiled(config, line_callback=waiter.callback),
             api_client_connected() as client,
         ):
             # Verify device is running
-            device_info = await client.device_info()
-            assert device_info is not None
-            assert device_info.name == "udp-test"
+            await assert_device_name(client, "udp-test")
 
             # Get services
             _, services = await client.list_entities_services()
 
             # Test sending string message
-            send_message_service = next(
-                (s for s in services if s.name == "send_udp_message"), None
-            )
-            assert send_message_service is not None, (
-                "send_udp_message service not found"
-            )
+            send_message_service = require_service(services, "send_udp_message")
 
             await client.execute_service(send_message_service, {})
 
@@ -142,10 +142,7 @@ async def test_udp_send_receive(
                 )
 
             # Test sending bytes
-            send_bytes_service = next(
-                (s for s in services if s.name == "send_udp_bytes"), None
-            )
-            assert send_bytes_service is not None, "send_udp_bytes service not found"
+            send_bytes_service = require_service(services, "send_udp_bytes")
 
             await client.execute_service(send_bytes_service, {})
 
@@ -162,10 +159,20 @@ async def test_udp_send_receive(
 
             # Verify dump_config logged all configured addresses
             # This tests that FixedVector<const char*> stores addresses correctly
-            log_text = "\n".join(log_lines)
+            log_text = "\n".join(waiter.lines)
             assert "Address: 127.0.0.1" in log_text, (
                 f"Address 127.0.0.1 not found in dump_config. Log: {log_text[-2000:]}"
             )
             assert "Address: 127.0.0.2" in log_text, (
                 f"Address 127.0.0.2 not found in dump_config. Log: {log_text[-2000:]}"
             )
+
+            # Test receiving a UDP packet (exercises on_receive with std::span)
+            test_payload = b"TEST_RECEIVE_UDP"
+            send_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                send_sock.sendto(test_payload, ("127.0.0.1", listen_port))
+            finally:
+                send_sock.close()
+
+            await waiter.wait_for("Received UDP:", timeout=5.0)

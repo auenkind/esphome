@@ -4,13 +4,11 @@
 
 #include "esphome/core/component.h"
 #include "esphome/core/hal.h"
-#include "esphome/components/output/float_output.h"
 #include <vector>
 
-namespace esphome {
-namespace tlc5971 {
+namespace esphome::tlc5971 {
 
-class TLC5971 : public Component {
+class TLC5971 final : public Component {
  public:
   const uint8_t N_CHANNELS_PER_CHIP = 12;
 
@@ -28,6 +26,10 @@ class TLC5971 : public Component {
   void loop() override;
 
   void set_channel_value(uint16_t channel, uint16_t value);
+  /// Set a channel from an output level, 0.0 to 1.0.
+  void write_channel(uint16_t channel, float state) {
+    this->set_channel_value(channel, static_cast<uint16_t>(state * 0xffff));
+  }
 
  protected:
   void transfer_(uint8_t send);
@@ -39,5 +41,4 @@ class TLC5971 : public Component {
   std::vector<uint16_t> pwm_amounts_;
   bool update_{true};
 };
-}  // namespace tlc5971
-}  // namespace esphome
+}  // namespace esphome::tlc5971
