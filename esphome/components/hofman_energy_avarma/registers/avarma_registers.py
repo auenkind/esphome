@@ -993,6 +993,8 @@ AVARMA_NUMBER_REGISTERS = [
         "AU heating limiting temperature",
         10,
         25,
+        0.1,
+        10.0,
         deactivated=False,
     ),
     NumberRegister(
@@ -1002,6 +1004,8 @@ AVARMA_NUMBER_REGISTERS = [
         "AU heating recovery temperature",
         8,
         23,
+        0.1,
+        10.0,
         deactivated=False,
     ),
 ]
