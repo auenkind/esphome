@@ -986,4 +986,22 @@ AVARMA_NUMBER_REGISTERS = [
         90,
         deactivated=True,
     ),
+    NumberRegister(
+        0x2000,
+        133,
+        "P135",
+        "AU heating limiting temperature",
+        10,
+        25,
+        deactivated=False,
+    ),
+    NumberRegister(
+        0x2000,
+        134,
+        "P136",
+        "AU heating recovery temperature",
+        8,
+        23,
+        deactivated=False,
+    ),
 ]
