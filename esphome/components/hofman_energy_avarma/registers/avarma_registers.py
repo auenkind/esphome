@@ -599,7 +599,7 @@ AVARMA_NUMBER_REGISTERS = [
         "P58",
         "C1 water pump speed regulation temperature difference",
         3,
-        8,
+        20,
         0.1,
         10.0,
         deactivated=True,
